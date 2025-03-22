@@ -2,3 +2,6 @@ build/
 .metadata/
 .settings/
 .vscode/BROWSE.*
+
+
+secrets.h

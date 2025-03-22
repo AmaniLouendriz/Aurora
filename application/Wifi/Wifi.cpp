@@ -191,13 +191,13 @@ esp_err_t Wifi::_init(void)
 
         if (ESP_OK == status) {
             ESP_LOGI(_log_tag, "%s:%d : Calling esp_wifi_start", __func__,__LINE__);
-            status = esp_wifi_start();// I am here, so there is a wifi event
+            status = esp_wifi_start();// I am here, so there is a wifi event, GOT HERE  TODO!!
             ESP_LOGI(_log_tag, "%s:%d : esp_wifi_start:%s", __func__,__LINE__, esp_err_to_name(status));
         }
 
         if (ESP_OK == status) {
             ESP_LOGI(_log_tag, "%s:%d : INITIALISED", __func__,__LINE__);
-            _state = state_e::INITIALISED;
+            _state = state_e::INITIALISED;// I can get here !!!!
         }
 
     } else if(state_e::ERROR == _state)

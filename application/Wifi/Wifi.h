@@ -12,6 +12,7 @@
 // setting up a wifi station, from documentation
 #include "esp_event.h"
 #include "esp_log.h"
+#include "secrets.h"
 
 #define pdSECOND pdMS_TO_TICKS(1000)
 
@@ -21,8 +22,8 @@ namespace WIFI
 class Wifi
 {
     constexpr static const char* _log_tag {"WiFi"};
-    constexpr static const char* ssid {"HUAWEI Y9s"};
-    constexpr static const char* password{"22ac5f6da38e"};
+    constexpr static const char* ssid {WIFI_SSID};
+    constexpr static const char* password {WIFI_PASS};
 
 public:
 
