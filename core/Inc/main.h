@@ -31,6 +31,7 @@
 
 QueueHandle_t dataQueueDistance;
 QueueHandle_t dataQueueVolume;
+QueueHandle_t dataQueueVolumeDb;
 constexpr double PI {3.14159265};
 
 constexpr double surface_base {RADIUS_BOTTLE_BASE * RADIUS_BOTTLE_BASE * PI};// cm2
@@ -42,9 +43,9 @@ constexpr double error_margin {0.6};//cm
 class Main final
 {
 public:
-    // Main(void) :
-    //     sntp {SNTP::Sntp::get_instance()} {}
-    Main(void) {};
+    Main(void) :
+        sntp {SNTP::Sntp::get_instance()} {}
+    // Main(void) {};
     esp_err_t setup(void);
 
     void startUltraSonicSensor();
@@ -61,7 +62,7 @@ public:
     Gpio::GpioOutput ledGreen {GPIO_NUM_33,false};
     Gpio::GpioOutput ledOrange {GPIO_NUM_25,false}; // meaning orange
     WIFI::Wifi wifi {};
-    //SNTP::Sntp& sntp;// TODO, later on, uncomment
+    SNTP::Sntp& sntp;// TODO, later on, uncomment
 
     Gpio::GpioOutput triggerPin {GPIO_NUM_13,false};// TRIGGER OUTPUT
     Gpio::GpioInput echoPin {GPIO_NUM_12,false};// ECHO INPUT

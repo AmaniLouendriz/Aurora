@@ -45,7 +45,7 @@ public:// we want a singleton here
     [[nodiscard]] static const auto time_point_now(void) noexcept
     {
         // noexcept tells the compiler that the function doesn't throw exceptions
-        // using auto because otherwise we would have to put std::chrono::_V2::system_clock::time_point. That's absolutely HORIFIC!
+        // using auto because otherwise we would have to put std::chrono::_V2::system_clock::time_point. That's absolutely HORRIFIC!
         return std::chrono::system_clock::now();
     }
 
@@ -62,11 +62,16 @@ public:// we want a singleton here
         return std::chrono::duration_cast<std::chrono::seconds>(time_point_now().time_since_epoch());
     }
 
+    static bool isSynched() {
+        return _synched;
+    }
+
 private:
     // we can use auto but it may get a bit messy, especially if the compiler doesn't get the type right and we may end up with undefined behavior
     static std::chrono::_V2::system_clock::time_point last_update;// you can't default initialze here if not constexpr
     static time_source_e source;
     static bool _running;
+    static bool _synched;
 };
 
 } // namespace SNTP

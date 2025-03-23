@@ -7,6 +7,7 @@ namespace SNTP {
 std::chrono::_V2::system_clock::time_point last_update {};
 Sntp::time_source_e Sntp::source {Sntp::time_source_e::TIME_SRC_UNKNOWN};
 bool Sntp::_running {false};
+bool Sntp::_synched {false};
 
 // constructor
 
@@ -16,6 +17,8 @@ void Sntp::callback_on_ntp_update(timeval* tv)
 {
     ESP_LOGI(_log_tag, "Do we ever come here");
     ESP_LOGI(_log_tag, "Time is %s",ascii_time_now());
+    _synched = true;
+
 
 }
 
@@ -33,6 +36,8 @@ esp_err_t Sntp::init(void)
 
             // Now we are connected and we got an ip
             // std offset dst [offset],start[/time],end[/time]
+            // what below means that daylight saving starts on the second sunday in March and finishes on the first Sunday in November.
+            // The switch occurs at 02:00 local time in both cases.
             setenv("TZ", "EST+5EDT,M3.2.0/2,M11.1.0/2", 1);
             tzset();
 
@@ -63,7 +68,7 @@ esp_err_t Sntp::init(void)
 // ascii_time_now
 [[nodiscard]] const char* Sntp::ascii_time_now(void)
 {
-    const std::time_t time_now {std::chrono::system_clock::to_time_t(time_point_now())};// now we have the current time as a time_t structure
+    const std::time_t time_now {std::chrono::system_clock::to_time_t(time_point_now())}; // now we have the current time as a time_t structure
 
     return std::asctime(std::localtime(&time_now));
 

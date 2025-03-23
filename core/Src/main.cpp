@@ -27,7 +27,13 @@ esp_err_t Main::setup(void)
     if (ESP_OK == status) {
         status |= wifi.begin();
     }
-    //status |= sntp.init();
+    
+    status |= sntp.init();
+
+    while (!sntp.isSynched()) {
+      ESP_LOGI(LOG_TAG,"Waiting one second to synchronize with ntp server");
+      vTaskDelay(pdMS_TO_TICKS(1000));
+    }
 
     ESP_LOGI(LOG_TAG,"Before client");
 
@@ -135,10 +141,26 @@ void Main::calculateVolume() {
         distanceReceivedOld = distanceReceivedNew;
         ESP_LOGI(LOG_TAG,"the volume you drank in ml so far is: %.2f",drankVolumeNew);
 
+        // check if queue is full
+        if (uxQueueSpacesAvailable(dataQueueVolume) == 0) {
+          xQueueReset(dataQueueVolume);// clear the queue
+        }
+
+        // check if queue is full
+        if (uxQueueSpacesAvailable(dataQueueVolumeDb) == 0) {
+          xQueueReset(dataQueueVolumeDb);// clear the queue
+        }
+
         if (xQueueSend(dataQueueVolume, &drankVolumeNew, pdMS_TO_TICKS(100)) == pdTRUE) {
-          ESP_LOGI("TASK 2", "Sent: Volume=%.2f", drankVolumeNew);
+          ESP_LOGI("TASK 2", "Sent to led task: Volume=%.2f", drankVolumeNew);
         } else {
-          ESP_LOGE("TASK 2", "Error happened while sending volume!");
+          ESP_LOGE("TASK 2", "Error happened while sending volume to led task!");
+        }
+
+        if (xQueueSend(dataQueueVolumeDb,&drankVolumeNew,pdMS_TO_TICKS(100)) == pdTRUE) {
+          ESP_LOGI("TASK 2", "Sent to db task: Volume=%.2f", drankVolumeNew);
+        } else {
+          ESP_LOGE("TASK 2", "Error happened while sending volume to db task!");
         }
 
       } else if ((distanceReceivedOld - error_margin)>=distanceReceivedNew) {
@@ -197,14 +219,32 @@ void Main::fireLeds() {
 void Main::sendVolume() {
   vTaskDelay(6*pdSECOND);
   double drankVolumeReceived {};
-  char volume[100];
+  char volume[200];
+
+
 
   for (;;) {
+
+    char time [100];
+  
     ESP_LOGI(LOG_TAG,"start t4");
-    if (xQueueReceive(dataQueueVolume,&drankVolumeReceived,portMAX_DELAY) == pdTRUE) {
+    if (xQueueReceive(dataQueueVolumeDb,&drankVolumeReceived,portMAX_DELAY) == pdTRUE) {
       ESP_LOGI("TASK 4", "Received: Volume Received=%.2f", drankVolumeReceived);
+
+      const char* asciiTime {sntp.ascii_time_now()};
+
+      for (int i = 0; i < strlen(asciiTime);i++) {
+        //ESP_LOGI("TASK 4", "Before sending the time is: %c", asciiTime[i]);
+        time[i] = asciiTime[i];
+        if (asciiTime[i] == '\n') {
+          time[i] = '\0';
+        }
+      }
       // now we received the volume, send it to db
-      snprintf(volume,sizeof(volume),"{\"volume_drank\": %.2f}", drankVolumeReceived);
+      snprintf(volume,sizeof(volume),"{\"volume_drank\": %.2f ,\"timestamp\": \"%s\"}", drankVolumeReceived,time);
+
+      ESP_LOGI("TASK 4", "Before sending the volume  is: %s", volume);
+
 
       esp_http_client_set_post_field(client, volume, strlen(volume));
 
@@ -219,6 +259,8 @@ void Main::sendVolume() {
     } else {
       ESP_LOGE("TASK 4", "No information received!");
     }
+
+
     vTaskDelay(6*pdSECOND);
   }
 }
@@ -290,6 +332,10 @@ extern "C" void app_main(void)
     // volume queue
     dataQueueVolume = xQueueCreate(QUEUE_SIZE, sizeof(drankVolume));
 
+    // volume queue as well, but for the database send task
+
+    dataQueueVolumeDb = xQueueCreate(QUEUE_SIZE,sizeof(drankVolume));
+
     if (dataQueueDistance == NULL) {
       ESP_LOGE(LOG_TAG, "Failed to create distance queue!");
       return;
@@ -297,6 +343,11 @@ extern "C" void app_main(void)
 
     if (dataQueueVolume == NULL) {
       ESP_LOGE(LOG_TAG, "Failed to create volume queue!");
+      return;
+    }
+
+    if (dataQueueVolumeDb == NULL) {
+      ESP_LOGE(LOG_TAG, "Failed to create volume queue for db task!");
       return;
     }
 
