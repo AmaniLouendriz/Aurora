@@ -2,6 +2,9 @@
 #include <esp_mac.h>
 #include <esp_log.h>
 #include <mutex>
+#include <lwip/dns.h>
+#include <lwip/ip4_addr.h>
+#include <ping/ping_sock.h>
 
 namespace WIFI
 {
@@ -78,6 +81,23 @@ void Wifi::wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t ev
     }
 }
 
+// void ping_test() {
+//     esp_ping_config_t ping_config = ESP_PING_DEFAULT_CONFIG();
+
+//     // Correct way to set the target address
+//     ip4_addr_t target_ip;
+//     IP4_ADDR(&target_ip, 8, 8, 8, 8);  // Google's DNS IP (8.8.8.8)
+    
+//     // Cast target_ip to ip_addr_t before assigning
+//     ip_addr_t addr;
+//     IP4_ADDR(&addr.u_addr.ip4, 8, 8, 8, 8); // Assign IP to the ip_addr_t
+
+//     ping_config.target_addr = addr;
+
+//     // Start the ping
+//     esp_ping_start(&ping_config);
+// }
+
 void Wifi::ip_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
 {
     const  ip_event_t event_type {static_cast<ip_event_t>(event_id)};
@@ -90,7 +110,26 @@ void Wifi::ip_event_handler(void* arg, esp_event_base_t event_base, int32_t even
             ESP_LOGI(_log_tag, "%s:%d : Got IP, waiting for state_mutex", __func__,__LINE__);
             std::lock_guard<std::mutex> state_guard(state_mutex);// recursive mutex??
             _state = state_e::CONNECTED;
+            ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
+            ESP_LOGI("WIFI", "✅ Got IP: " IPSTR, IP2STR(&event->ip_info.ip));
+            ESP_LOGI("WIFI", "Gateway: " IPSTR, IP2STR(&event->ip_info.gw));
+            ESP_LOGI("WIFI", "Netmask: " IPSTR, IP2STR(&event->ip_info.netmask));
             ESP_LOGI(_log_tag, "%s:%d : Connected!", __func__,__LINE__);
+        //    esp_ping_config_t ping_config = ESP_PING_DEFAULT_CONFIG();
+        
+        //     // Correct way to set the target address
+        //     ip4_addr_t target_ip;
+        //     IP4_ADDR(&target_ip, 8, 8, 8, 8);  // Google's DNS IP (8.8.8.8)
+            
+        //     // Cast target_ip to ip_addr_t before assigning
+        //     ip_addr_t addr;
+        //     IP4_ADDR(&addr.u_addr.ip4, 8, 8, 8, 8); // Assign IP to the ip_addr_t
+        
+        //     ping_config.target_addr = addr;
+        
+        //     // Start the ping
+        //     ESP_LOGI("WIFI","Starting the pings");
+        //     esp_ping_start(&ping_config);
             break;
         }
         case IP_EVENT_STA_LOST_IP:
@@ -125,6 +164,8 @@ esp_err_t Wifi::_init(void)
     ESP_LOGI(_log_tag, "%s:%d : Waiting for state_mutex:", __func__,__LINE__);
     std::lock_guard<std::mutex> state_guard(state_mutex);
 
+    esp_netif_t* p_netif {};
+
     if (state_e::NOT_INITIALISED == _state) {
         // one time initialization
         ESP_LOGI(_log_tag, "%s:%d : Calling esp_netif_init", __func__,__LINE__);
@@ -132,7 +173,7 @@ esp_err_t Wifi::_init(void)
         ESP_LOGI(_log_tag, "%s:%d : esp_netif_init:%s", __func__,__LINE__, esp_err_to_name(status));
         if (ESP_OK == status) {
             ESP_LOGI(_log_tag, "%s:%d : Calling esp_netif_create_default_wifi_sta", __func__,__LINE__);
-            const esp_netif_t* const p_netif =  esp_netif_create_default_wifi_sta();
+            p_netif =  esp_netif_create_default_wifi_sta();
             ESP_LOGI(_log_tag, "%s:%d : esp_netif_create_default_wifi_sta:%p", __func__,__LINE__, p_netif);// if a nullptr is returned in p_netif, then it fails
 
             if (!p_netif) {
@@ -189,6 +230,23 @@ esp_err_t Wifi::_init(void)
             ESP_LOGI(_log_tag, "%s:%d : esp_wifi_set_config:%s", __func__,__LINE__, esp_err_to_name(status));
         }
 
+        // if (ESP_OK == status) {
+        //     // 🔹 Set Static IP
+        //     esp_netif_ip_info_t ip_info;
+        //     IP4_ADDR(&ip_info.ip, 192, 168, 43, 126);   // Static IP, 192.168.43.126
+        //     IP4_ADDR(&ip_info.gw, 192, 168, 43, 1);     // Gateway (Phone Hotspot)
+        //     IP4_ADDR(&ip_info.netmask, 255, 255, 255, 0); // Subnet Mask
+
+        //     esp_netif_dhcpc_stop(p_netif); // Disable DHCP
+
+        //     esp_netif_set_ip_info(p_netif, &ip_info);
+
+        //     // 🔹 Manually Set DNS Server
+        //     ip_addr_t dns;
+        //     IP4_ADDR(ip_2_ip4(&dns), 8, 8, 8, 8); // Use Google's DNS
+        //     dns_setserver(0, &dns);
+        // }
+
         if (ESP_OK == status) {
             ESP_LOGI(_log_tag, "%s:%d : Calling esp_wifi_start", __func__,__LINE__);
             status = esp_wifi_start();// I am here, so there is a wifi event, GOT HERE  TODO!!
@@ -208,6 +266,8 @@ esp_err_t Wifi::_init(void)
 
     return status;
 }
+
+
 
 esp_err_t Wifi::begin(void) 
 {

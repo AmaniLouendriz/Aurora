@@ -13,6 +13,9 @@
 #include "esp_event.h"
 #include "esp_log.h"
 #include "secrets.h"
+#include "lwip/ip4_addr.h"
+#include <ping/ping_sock.h>
+// #include "tcpip_adapter.h"
 
 #define pdSECOND pdMS_TO_TICKS(1000)
 
@@ -56,6 +59,22 @@ public:
     constexpr static const char* get_mac() 
         {return mac_addr_cstr;} // static because this function will always return the same thing, regardless of the instance I am in.
 
+        // void static ping_test() {
+        //     esp_ping_config_t ping_config = ESP_PING_DEFAULT_CONFIG();
+        
+        //     // Correct way to set the target address
+        //     ip4_addr_t target_ip;
+        //     IP4_ADDR(&target_ip, 8, 8, 8, 8);  // Google's DNS IP (8.8.8.8)
+            
+        //     // Cast target_ip to ip_addr_t before assigning
+        //     ip_addr_t addr;
+        //     IP4_ADDR(&addr.u_addr.ip4, 8, 8, 8, 8); // Assign IP to the ip_addr_t
+        
+        //     ping_config.target_addr = addr;
+        
+        //     // Start the ping
+        //     esp_ping_start(&ping_config);
+        // }
 private:
     static esp_err_t _init(void);
     void state_machine(void);// internal machine
