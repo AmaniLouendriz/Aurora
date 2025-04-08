@@ -54,7 +54,6 @@ void Main::startUltraSonicSensor() {
       }
     }
 
-    // if we are here, it means that the sensor received the bounced off pulse, (not really)
 
     if (received_pulse_echo_high) {
       // process only if you received the high pulse in the estimated time frame
@@ -96,12 +95,10 @@ void Main::startUltraSonicSensor() {
       }
     }
     ESP_LOGI(LOG_TAG,"end t2");
-    // vTaskDelay(2*pdSECOND);// wait 2s before next reading, this will change depending on the whole cycle TODO
   }
 }
 
 void Main::calculateVolume() {
-  // vTaskDelay(pdSECOND);// 1s delay
   ESP_LOGI(LOG_TAG,"I am in the calculate volume function");
   double distanceReceivedNew {};// time t
   double distanceReceivedOld {};// time t-1
@@ -117,7 +114,7 @@ void Main::calculateVolume() {
       if ((distanceReceivedNew > max_bottle_distance) || (distanceReceivedNew < 0)) {
         ESP_LOGE("TASK 3", "Invalid distance!");
       } else if ((distanceReceivedOld + error_margin ) <= distanceReceivedNew) {
-        drankVolumeNew = drankVolumeOld + ((distanceReceivedNew - distanceReceivedOld)*surface_base); //cm3, TODO, might need to remove the height of the lid itself
+        drankVolumeNew = drankVolumeOld + ((distanceReceivedNew - distanceReceivedOld)*surface_base); //cm3
         drankVolumeOld = drankVolumeNew;
         distanceReceivedOld = distanceReceivedNew;
         ESP_LOGI(LOG_TAG,"the volume you drank in ml so far is: %.2f",drankVolumeNew);
@@ -156,15 +153,10 @@ void Main::calculateVolume() {
       ESP_LOGE("calculateVolume", "Error receiving data");
     }
     ESP_LOGI(LOG_TAG,"end t3");
-
-
-    // vTaskDelay(2*pdSECOND);//2s delays
-
   }
 }
 
 void Main::fireLeds() {
-  // vTaskDelay(2*pdSECOND);
   double drankVolumeReceived {};
 
 
@@ -175,35 +167,29 @@ void Main::fireLeds() {
       ESP_LOGI("TASK 4", "Received: Volume Received=%.2f", drankVolumeReceived);
 
       if ((drankVolumeReceived < (WOMEN_INTAKE * 0.5))) {
-        ESP_LOGI("TASK 4", "Setting red=%.2f", drankVolumeReceived);
         // we drank less than the half
         ledRed.set(true);// DANGER
         ledOrange.set(false);
         ledGreen.set(false);
-        startBuzzer = true;
       } else if ((drankVolumeReceived >= (WOMEN_INTAKE * 0.5)) && (drankVolumeReceived < (WOMEN_INTAKE))) {
-        // we drank at least the half but it's less than the 3/4
+        // we drank at least the half but it's less than the full amount
         ledOrange.set(true);
         ledRed.set(false);
         ledGreen.set(false);
-        startBuzzer = true;
       } else {
         // we drank well
         ledOrange.set(false);
         ledRed.set(false);
         ledGreen.set(true);
-        startBuzzer = false;
-      }// TODO, might add another else, if we drank double what we needed, might be a value set by the user
+      }
     } else {
       ESP_LOGE("TASK 4", "Error receiving data");
     }
     ESP_LOGI(LOG_TAG,"end t4");
-    // vTaskDelay(2*pdSECOND);
   }
 }
 
 void Main::sendVolume() {
-  // vTaskDelay(6*pdSECOND);
   double drankVolumeReceived {};
   char volume[200];
 
@@ -221,7 +207,6 @@ void Main::sendVolume() {
       const char* asciiTime {sntp.ascii_time_now()};
 
       for (int i = 0; i < strlen(asciiTime);i++) {
-        //ESP_LOGI("TASK 4", "Before sending the time is: %c", asciiTime[i]);
         time[i] = asciiTime[i];
         if (asciiTime[i] == '\n') {
           time[i] = '\0';
@@ -248,16 +233,13 @@ void Main::sendVolume() {
         } else {
           ESP_LOGE("TASK 5","probelm in esp_http_client_set_header");
         }
-        esp_http_client_cleanup(client);// TODO, destructor
+        esp_http_client_cleanup(client);
       } else {
         ESP_LOGE("TASK 5", "Not connected to wifi :)");
       }
     } else {
       ESP_LOGE("TASK 5", "No information received!");
     }
-
-
-    // vTaskDelay(6*pdSECOND);
   }
 }
 
@@ -278,32 +260,9 @@ void Main::setupWifi() {
     vTaskDelay(pdMS_TO_TICKS(1000));
   }
 
-  ESP_LOGI(LOG_TAG,"Before client");
-
- 
-  ESP_LOGI(LOG_TAG,"After client");
-
   for (;;) {
-    // if (status  == ESP_OK) {
-    //   ESP_LOGI(LOG_TAG,"Everything ran smoothly (sntp + wifi)");
-    // }
-
   }
 }
-
-// void Main::triggerBuzzer() {
-//   for (;;) {
-//     vTaskDelay(51*pdSECOND);
-//     ESP_LOGI(LOG_TAG,"trying to trigger buzzer");
-//     if (startBuzzer) {
-//       ESP_LOGI(LOG_TAG,"trying to set to true");
-//       buzzer.set(true);
-//       vTaskDelay(2*pdSECOND);
-//       buzzer.set(false);
-//     }
-//   }
-
-// }
 
 void wifiSetupWrapper (void* pvParameters) {
   ESP_LOGI(LOG_TAG,"I am in the wifi set up wrapper");
@@ -330,12 +289,6 @@ void sendDataWrapper (void* pvParameters) {
   my_main.sendVolume();
 }
 
-// void triggerBuzzerWrapper(void* pvParameters) {
-//   ESP_LOGI(LOG_TAG,"I am in the trigger buzzer task");
-//   my_main.triggerBuzzer();
-// }
-
-
 extern "C" void app_main(void)
 {
     double distance {};
@@ -348,9 +301,6 @@ extern "C" void app_main(void)
     ESP_ERROR_CHECK(nvs_flash_init());
 
     ESP_ERROR_CHECK(my_main.setup());
-    //vTaskDelay(10000*pdSECOND);
-
-    ESP_LOGI(LOG_TAG,"Do I even get here???");
 
     ESP_LOGI(LOG_TAG,"Creating a task for wifi set up");
     if (xTaskCreate(wifiSetupWrapper,"tWifi",4096,NULL,tskIDLE_PRIORITY, NULL) != pdPASS) {
@@ -378,12 +328,6 @@ extern "C" void app_main(void)
     if (xTaskCreate(sendDataWrapper,"tSendData",4096,NULL,tskIDLE_PRIORITY,NULL) != pdPASS) {
       ESP_LOGI(LOG_TAG,"Problem happened while creating the send data task");
     }
-
-    // ESP_LOGI(LOG_TAG,"Creating a buzzer task");
-    // if (xTaskCreate(triggerBuzzerWrapper,"tTriggerBuzzer",2048,NULL,tskIDLE_PRIORITY,NULL) != pdPASS) {
-    //   ESP_LOGI(LOG_TAG,"Problem happened while creating the trigger buzzer task");
-    // }
-
 
     // distance queue
     dataQueueDistance = xQueueCreate(QUEUE_SIZE, sizeof(distance));
